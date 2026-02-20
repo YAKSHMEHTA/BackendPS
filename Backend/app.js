@@ -40,6 +40,25 @@ app.post("/signup",async(req,res)=>{
    res.send("Signup successful");
 })
 
+app.post("/login",async(req,res)=>{
+  let {username,password} = req.body;
+
+  if(!username || !password){
+    return res.send("Username and password both are required");
+  }
+
+  let user = await User.findOne({username});
+  if(!user){
+    return res.send("User not found");
+  }
+  if(user.password != password){
+    return res.send("Wrong password");
+  }
+
+  res.send("Login Suceesfull")
+
+})
+
 mongoose.connect(process.env.URI)
   .then(() => {
     console.log("DB connected");

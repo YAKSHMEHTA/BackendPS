@@ -70,6 +70,22 @@ app.get("/logout",(req,res)=>{
   res.send("Loged out")
 })
 
+const generateAccessToken = (user)=>{
+  return jwt.sign(
+    {id:user._id},
+    process.env.ACCESS_SECRET,
+    {expiresIn:"15m"}
+  )
+}
+
+const generateRefreshToken = (user)=>{
+  return jwt.sign(
+    {id:user._id},
+    process.env.REFRESH_SECRET,
+    {expiresIn:"7d"}
+  )
+}
+
 app.post("/login",async(req,res)=>{
   let {username,password} = req.body;
 
@@ -85,25 +101,42 @@ app.post("/login",async(req,res)=>{
     return res.send("Wrong password");
   }
 
-  const token = jwt.sign(
-    {id:user._id,username:user.username},
-    JWT_SECRET,
-    {expiresIn:"1h"}
+  const accessToken = generateAccessToken(user);
+  const refreshtoken = generateRefreshToken(user);
 
-  );
+  user.refreshtoken = refreshtoken;
+  await user.save();
 
-  res.cookie("token",token,{
-    httpOnly:true,
+  res.cookie("refreshtoken",refreshtoken,{
     secure:false,
-    maxAge:60*60*1000
-  })
+    sameSite:"strict",
+    });
 
-  res.json({
-    message: "Login successful",
-    token: token
-  });
+  res.json({ accessToken });
 
 })
+
+app.post("/refresh",async(req,res)=>{
+  const token = req.cookies.refreshtoken;
+  if(!token){
+    return res.status(401).send("No refresh token");
+  }
+
+  try{
+    const decoded = jwt.verify(token,process.env.REFRESH_SECRET);
+    const user = await User.findById(decoded.id);
+    if (!user || user.refreshToken !== token){
+      return res.status(403).send("Invalid refresh token");
+    }
+
+    const newAccessToken = generateAccessToken(user);
+     res.json({ accessToken: newAccessToken })
+  }catch(e){
+
+  }
+
+})
+
 
 mongoose.connect(process.env.URI)
   .then(() => {

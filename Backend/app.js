@@ -44,31 +44,32 @@ app.post("/signup",async(req,res)=>{
    res.send("Signup successful");
 })
 
-function authWare(req,res,next){
+function authWare(req, res, next) {
 
-  const token = req.cookies.token;
+  const token = req.cookies.accessToken;
 
-  if(!token){
-    res.send("Not authenticated, please login");
+  if (!token) {
+    return res.status(401).send("Not authenticated");
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.ACCESS_SECRET);
     req.user = decoded;
-    next()
+    next();
   } catch (err) {
-    res.status(401).send("Invalid token");
+    res.status(401).send("Invalid or expired token");
   }
 }
 
-app.get("/dashboard", authWare, (req, res) => {
-  res.send(`Welcome ${req.user.username}`);
+app.get("/dashboard", authWare, async (req, res) => {
+  const user = await User.findById(req.user.id);
+  res.send(`Welcome ${user.username}`);
 });
 
-app.get("/logout",(req,res)=>{
-  res.clearCookie("token")
-  res.send("Loged out")
-})
+// app.get("/logout",(req,res)=>{
+//   res.clearCookie("accessToken")
+//   res.send("Loged out")
+// })
 
 const generateAccessToken = (user)=>{
   return jwt.sign(
@@ -102,12 +103,12 @@ app.post("/login",async(req,res)=>{
   }
 
   const accessToken = generateAccessToken(user);
-  const refreshtoken = generateRefreshToken(user);
+  const refreshToken = generateRefreshToken(user);
 
-  user.refreshtoken = refreshtoken;
+  user.refreshToken = refreshToken;
   await user.save();
 
-  res.cookie("refreshtoken",refreshtoken,{
+  res.cookie("accessToken",accessToken,{
     secure:false,
     sameSite:"strict",
     });
@@ -117,7 +118,7 @@ app.post("/login",async(req,res)=>{
 })
 
 app.post("/refresh",async(req,res)=>{
-  const token = req.cookies.refreshtoken;
+  const token = req.cookies.refreshToken;
   if(!token){
     return res.status(401).send("No refresh token");
   }
@@ -132,11 +133,30 @@ app.post("/refresh",async(req,res)=>{
     const newAccessToken = generateAccessToken(user);
      res.json({ accessToken: newAccessToken })
   }catch(e){
-
+    res.send(e);
   }
-
 })
 
+app.post("/logout", async (req, res) => {
+
+  const token = req.cookies.accessToken;
+  if (!token) return res.sendStatus(204);
+
+  try {
+    const decoded = jwt.verify(token, process.env.ACCESS_SECRET);
+
+    const user = await User.findById(decoded.id);
+    if (user) {
+      user.refreshToken = null;
+      await user.save();
+    }
+
+  } catch {}
+
+  res.clearCookie("accessToken");
+  res.clearCookie("refreshToken");
+  res.send("Logged out");
+});
 
 mongoose.connect(process.env.URI)
   .then(() => {

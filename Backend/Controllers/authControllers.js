@@ -1,4 +1,7 @@
 import express from "express";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
+import User from "../Mongo/Usermodel.js";
 const router = express.Router();
 
 
@@ -14,7 +17,7 @@ const generateRefreshToken = (user) => {
   });
 };
 
-export const login = ("/login", async (req, res) => {
+export const login =  async (req, res) => {
   let { username, password } = req.body;
 
   if (!username || !password) {
@@ -45,9 +48,9 @@ export const login = ("/login", async (req, res) => {
     sameSite: "strict",
   });
   res.json({ accessToken });
-});
+};
 
-export const signup = ("/signup", async (req, res) => {
+export const signup = async (req, res) => {
   let { username, email, password } = req.body;
   console.log(req.body);
   let user = await User.findOne({ username });
@@ -62,4 +65,4 @@ export const signup = ("/signup", async (req, res) => {
   });
   await newuser.save();
   res.send("Signup successful");
-});
+};

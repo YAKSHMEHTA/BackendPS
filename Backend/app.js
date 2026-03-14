@@ -15,7 +15,7 @@ app.use(express.urlencoded({ extended: true }));
 const PORT = 8000;
 app.use(cookieParser());
 
-app.use("api/auth",authRoutes);
+app.use("/api/auth",authRoutes);
 
 app.get("/", (req, res) => {
   res.send("This is home page");
@@ -29,22 +29,7 @@ app.get("/signup", (req, res) => {
   res.render("Signup");
 });
 
-app.post("/signup", async (req, res) => {
-  let { username, email, password } = req.body;
-  console.log(req.body);
-  let user = await User.findOne({ username });
-  if (user) {
-    return res.send("user already exist");
-  }
-  let hassedPassword = await bcrypt.hash(password, 10);
-  let newuser = new User({
-    username: username,
-    email: email,
-    password: hassedPassword,
-  });
-  await newuser.save();
-  res.send("Signup successful");
-});
+
 
 function authWare(req, res, next) {
   const token = req.cookies.accessToken;
@@ -83,38 +68,7 @@ const generateRefreshToken = (user) => {
   });
 };
 
-app.post("/login", async (req, res) => {
-  let { username, password } = req.body;
 
-  if (!username || !password) {
-    return res.send("Username and password both are required");
-  }
-
-  let user = await User.findOne({ username });
-  if (!user) {
-    return res.send("User not found");
-  }
-  const match = await bcrypt.compare(password, user.password);
-  if (!match) {
-    return res.send("wrong password");
-  }
-
-  const accessToken = generateAccessToken(user);
-  const refreshToken = generateRefreshToken(user);
-
-  user.refreshToken = refreshToken;
-  await user.save();
-
-  res.cookie("accessToken", accessToken, {
-    secure: false,
-    sameSite: "strict",
-  });
-  res.cookie("refreshToken", refreshToken, {
-    secure: false,
-    sameSite: "strict",
-  });
-  res.json({ accessToken });
-});
 
 app.get("/refresh", (req, res) => {
   res.send("Changing token");

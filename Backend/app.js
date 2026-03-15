@@ -14,7 +14,7 @@ app.set("view engine", "ejs");
 app.use(express.urlencoded({ extended: true }));
 const PORT = 8000;
 app.use(cookieParser());
-
+app.use(express.json());
 app.use("/api/auth",authRoutes);
 
 app.get("/", (req, res) => {
@@ -76,17 +76,28 @@ app.get("/refresh", (req, res) => {
 
 app.post("/refresh", async (req, res) => {
   const token = req.cookies.refreshToken;
+  const deviceId = req.cookies.deviceId
   if (!token) {
     return res.status(401).send("No refresh token");
   }
   try {
     const decoded = jwt.verify(token, process.env.REFRESH_SECRET);
     const user = await User.findById(decoded.id);
-    if (!user || user.refreshToken !== token) {
+    if (!deviceId) return res.status(403).send("Invalid token");
+    if (!user) return res.status(403).send("Invalid token");
+    const device = user.devices.find(d=> d.deviceId === deviceId);
+    const newAccessToken = generateAccessToken(user);
+    const newrefreshToken = generateRefreshToken(user);
+    if ( device.refreshToken !== token){
       return res.status(403).send("Invalid refresh token");
     }
-
-    const newAccessToken = generateAccessToken(user);
+    device.refreshToken = newrefreshToken;
+    await user.save();
+    res.cookie("refreshToken",newrefreshToken,{
+      httpOnly:true,
+      secure:false,
+      sameSite:"strict",
+    })
     res.cookie("accessToken", newAccessToken, {
       httpOnly: true,
       secure: false,
@@ -100,14 +111,15 @@ app.post("/refresh", async (req, res) => {
 
 app.post("/logout", async (req, res) => {
   const token = req.cookies.accessToken;
+  const deviceId = req.cookies.deviceId;
   if (!token) return res.sendStatus(204);
 
   try {
     const decoded = jwt.verify(token, process.env.ACCESS_SECRET);
-
+    
     const user = await User.findById(decoded.id);
     if (user) {
-      user.refreshToken = null;
+      user.devices =  user.devices.filter(d=> d.deviceId !== deviceId)
       await user.save();
     }
   } catch (e) {
@@ -116,6 +128,7 @@ app.post("/logout", async (req, res) => {
 
   res.clearCookie("accessToken");
   res.clearCookie("refreshToken");
+  res.clearCookie("deviceId");
   res.send("Logged out");
 });
 

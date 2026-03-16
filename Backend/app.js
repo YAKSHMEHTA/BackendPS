@@ -15,7 +15,7 @@ app.use(express.urlencoded({ extended: true }));
 const PORT = 8000;
 app.use(cookieParser());
 app.use(express.json());
-app.use("/api/auth",authRoutes);
+app.use("/api/auth", authRoutes);
 
 app.get("/", (req, res) => {
   res.send("This is home page");
@@ -33,7 +33,7 @@ app.get("/signup", (req, res) => {
 
 function authWare(req, res, next) {
   const token = req.cookies.accessToken;
-  
+
   if (!token) {
     return res.status(401).send("Not authenticated");
   }
@@ -45,6 +45,8 @@ function authWare(req, res, next) {
     res.status(401).send("Invalid or expired token");
   }
 }
+
+
 
 app.get("/dashboard", authWare, async (req, res) => {
   const user = await User.findById(req.user.id);
@@ -85,18 +87,18 @@ app.post("/refresh", async (req, res) => {
     const user = await User.findById(decoded.id);
     if (!deviceId) return res.status(403).send("Invalid token");
     if (!user) return res.status(403).send("Invalid token");
-    const device = user.devices.find(d=> d.deviceId === deviceId);
+    const device = user.devices.find(d => d.deviceId === deviceId);
     const newAccessToken = generateAccessToken(user);
     const newrefreshToken = generateRefreshToken(user);
-    if ( device.refreshToken !== token){
+    if (device.refreshToken !== token) {
       return res.status(403).send("Invalid refresh token");
     }
     device.refreshToken = newrefreshToken;
     await user.save();
-    res.cookie("refreshToken",newrefreshToken,{
-      httpOnly:true,
-      secure:false,
-      sameSite:"strict",
+    res.cookie("refreshToken", newrefreshToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "strict",
     })
     res.cookie("accessToken", newAccessToken, {
       httpOnly: true,
@@ -116,10 +118,10 @@ app.post("/logout", async (req, res) => {
 
   try {
     const decoded = jwt.verify(token, process.env.ACCESS_SECRET);
-    
+
     const user = await User.findById(decoded.id);
     if (user) {
-      user.devices =  user.devices.filter(d=> d.deviceId !== deviceId)
+      user.devices = user.devices.filter(d => d.deviceId !== deviceId)
       await user.save();
     }
   } catch (e) {
@@ -132,13 +134,31 @@ app.post("/logout", async (req, res) => {
   res.send("Logged out");
 });
 
-mongoose
-  .connect(process.env.URI)
-  .then(() => {
-    console.log("DB connected");
+const requireRole = (role) => {
+  return (req, res, next) => {
+    {
+      try {
+        const token = req.cookies.refreshtoken;
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        if (decoded.role != role) {
+          return res.send("not authorizer");
 
-    app.listen(PORT, () => {
-      console.log("Server running on port", PORT);
-    });
-  })
-  .catch((err) => console.error("DB connection error:", err));
+        } next();
+      } catch (error) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+    }
+  }
+
+
+  mongoose
+    .connect(process.env.URI)
+    .then(() => {
+      console.log("DB connected");
+
+      app.listen(PORT, () => {
+        console.log("Server running on port", PORT);
+      });
+    })
+    .catch((err) => console.error("DB connection error:", err))
+  }

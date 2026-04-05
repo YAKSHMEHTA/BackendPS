@@ -150,8 +150,9 @@ const requireRole = (role) => {
     }
   }
 
+  }
 
-  mongoose
+   mongoose
     .connect(process.env.URI)
     .then(() => {
       console.log("DB connected");
@@ -161,4 +162,3 @@ const requireRole = (role) => {
       });
     })
     .catch((err) => console.error("DB connection error:", err))
-  }

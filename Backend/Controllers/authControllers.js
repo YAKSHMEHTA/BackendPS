@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import { UAParser } from "ua-parser-js";
 import User from "../Mongo/Usermodel.js";
 import crypto from "crypto";
+import { sendEmail } from "../Utils/Mail.js";
 const router = express.Router();
 
 const generateAccessToken = (user) => {
@@ -86,7 +87,13 @@ export const signup = async (req, res) => {
     email: email,
     password: hassedPassword,
   });
+  try{
+    await sendEmail(email, username);
+  }catch(err){
+    console.error("Email failed:", err);
+  }
   await newuser.save();
+  
   res.send("Signup successful");
 };
 

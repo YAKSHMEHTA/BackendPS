@@ -50,7 +50,8 @@ function authWare(req, res, next) {
 
 app.get("/dashboard", authWare, async (req, res) => {
   const user = await User.findById(req.user.id);
-  res.send(`Welcome ${user.username}`);
+  const devices = await user.devices;
+  res.render("Dashboard",{devices});
 });
 
 // app.get("/logout",(req,res)=>{

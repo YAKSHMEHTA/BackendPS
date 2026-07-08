@@ -1,0 +1,6 @@
+./Backend/node_modules
+./GraphQL/node_modules
+.env
+./Backend/.env
+**/node_modules
+**/.env

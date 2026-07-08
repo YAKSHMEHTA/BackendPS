@@ -3,6 +3,8 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import User from "./Mongo/Usermodel.js";
 import jwt from "jsonwebtoken";
+import { ApolloServer } from "@apollo/server";
+import { startStandaloneServer } from "@apollo/server/standalone";
 import cookieParser from "cookie-parser";
 import bcrypt from "bcrypt";
 import authRoutes from "./Controllers/authRoutes.js"
